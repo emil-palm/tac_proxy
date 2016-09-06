@@ -1,0 +1,29 @@
+pidfile: /var/run/tac-proxy.pid
+syslog:
+ level: info
+# emerg
+# alert
+# crit
+# err
+# warning
+# notice
+# info
+# debug
+mattermost:
+ webhook:
+  url: "https://mattermost.xxxx.com/hooks/"
+  username: "tac-proxy"
+  enable: false
+port: 4900                
+address: 10.13.41.30      
+proxies:                  
+ oldtacacs:               
+   upstream:           
+     port: 49
+     address: 127.0.0.1    
+     key: tac_test
+   key: test
+   elements:               
+   - 10.13.41.32/32       
+   - 10.13.41.33/32       
+   - 10.13.41.34/32       
