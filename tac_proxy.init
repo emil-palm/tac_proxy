@@ -15,7 +15,7 @@ LOCKFILE=/var/lock/subsys/$prog
 
 start() {
         echo -n "Starting $prog: "
-        /usr/bin/${prog} --daemon
+        /usr/bin/${prog} --daemon && success || failure
         RETVAL=$?
         [ $RETVAL -eq 0 ] && touch $LOCKFILE
         echo
@@ -33,7 +33,7 @@ stop() {
 
 configtest() {
 	echo -n "Checking config for $prog"
-	/usr/bin/${prog} --configtest && sucess || failure
+	/usr/bin/${prog} --configtest && success || failure
 	echo 
 	return $RETVAL
 }
