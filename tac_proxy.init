@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# tac_proxy    Tacacs Proxy
+#
+# chkconfig: 345 70 30
+# description: Tacacs proxy daemon
+# processname: tac_proxy
+
+# Source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+prog="tac_proxy"
+LOCKFILE=/var/lock/subsys/$prog
+
+start() {
+        echo -n "Starting $prog: "
+        /usr/bin/${prog} --daemon
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && touch $LOCKFILE
+        echo
+        return $RETVAL
+}
+
+stop() {
+        echo -n "Shutting down $prog: "
+        /usr/bin/${prog} --stop-daemon && success || failure
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && rm -f $LOCKFILE
+        echo
+        return $RETVAL
+}
+
+configtest() {
+	echo -n "Checking config for $prog"
+	/usr/bin/${prog} --configtest && sucess || failure
+	echo 
+	return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    configtest)
+        configtest
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: $prog {start|stop|restart|configtest}"
+        exit 1
+        ;;
+esac
+exit $RETVAL
