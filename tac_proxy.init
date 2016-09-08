@@ -30,6 +30,14 @@ stop() {
         echo
         return $RETVAL
 }
+reload() {
+        echo -n "Reloading $prog: "
+        /usr/bin/${prog} --reload && success || failure
+        echo
+        return $RETVAL
+}
+
+
 
 configtest() {
 	echo -n "Checking config for $prog"
@@ -52,8 +60,11 @@ case "$1" in
         stop
         start
         ;;
+    reload)
+	reload
+	;;
     *)
-        echo "Usage: $prog {start|stop|restart|configtest}"
+        echo "Usage: $prog {start|stop|restart|configtest|reload}"
         exit 1
         ;;
 esac
