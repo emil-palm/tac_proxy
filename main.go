@@ -121,10 +121,9 @@ func main() {
 	}
 
 	if os.IsNotExist(err) == false {
-		log.Printf("%s already exists, aborting\n", viper.GetString("pidfile"))
-		os.Exit(1)
+		os.Remove(viper.GetString("pidfile"))
 	}
-	defer os.Remove(viper.GetString("pidfile"))
+
 	err = ioutil.WriteFile(viper.GetString("pidfile"), []byte(fmt.Sprintf("%d\n", os.Getpid())), os.ModeTemporary)
 
 	if err != nil {

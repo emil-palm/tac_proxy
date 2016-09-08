@@ -119,7 +119,11 @@ func (s *session) Handle(logger *syslog.Writer) {
 
 			pp.serialize(conn)
 
-			pp,_ = ps.readPacket()
+			pp,err = ps.readPacket()
+			if err != nil {
+				log.Printf("ACS is abit retarded and closed the TCP session, aborting")
+				break
+			}
 
 			p = s.genPacket(pp.packetType, p.version)
 			p.data = pp.data
@@ -133,7 +137,7 @@ func (s *session) Handle(logger *syslog.Writer) {
 					attachment.Color = "#ff0000"
 					attachment.Author_name = proxy
 					attachment.Text = fmt.Sprintf("%s (%s) is connecting to a old tacacs", peer_name, peer)
-	
+
 					webhook.Attachments = []Attachment{attachment}
 					jsonStr, err := json.Marshal(&webhook)
 					if err != nil {
