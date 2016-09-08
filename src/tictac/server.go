@@ -74,9 +74,23 @@ func (s *session) Handle(logger *syslog.Writer) {
 
 	var proxy_object = viper.Sub(fmt.Sprintf("proxies.%s", proxy))
 
-	log.Print(fmt.Sprintf("Connecting to upstream %s for proxy %s",fmt.Sprintf("%s:%s", proxy_object.GetString("upstream.address"), proxy_object.GetString("upstream.port")), proxy))
 
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", proxy_object.GetString("upstream.address"), proxy_object.GetString("upstream.port")))
+
+	dialer := new(net.Dialer)
+	if sourceip := proxy_object.GetString("sourceip"); sourceip != "" {
+		// Create the Dialer.
+
+		dialer.LocalAddr = &net.TCPAddr{
+			IP: net.ParseIP(sourceip), 
+		}
+
+		log.Print(fmt.Sprintf("Connecting to upstream %s for proxy %s with sourceip: %s",fmt.Sprintf("%s:%s", proxy_object.GetString("upstream.address"), proxy_object.GetString("upstream.port")), proxy, sourceip))
+	} else {
+			log.Print(fmt.Sprintf("Connecting to upstream %s for proxy %s",fmt.Sprintf("%s:%s", proxy_object.GetString("upstream.address"), proxy_object.GetString("upstream.port")), proxy ))
+
+	}
+
+	conn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%s", proxy_object.GetString("upstream.address"), proxy_object.GetString("upstream.port")))
 	if err != nil {
 		log.Print(fmt.Sprintf("Error connecting to upstream %s; %s", proxy, err))
 		s.conn.Close()
