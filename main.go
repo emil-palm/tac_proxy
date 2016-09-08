@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"log/syslog"
-	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -16,7 +15,41 @@ import (
 	"syscall"
 	"tictac"
 	"unicode/utf8"
+	"net"
+	"sort"
 )
+
+type ByCidr []*tictac.Proxy
+
+func (a ByCidr) Len() int { return len(a) }
+func (a ByCidr) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByCidr) Less(i, j int) bool { 
+	iPrefixSize , _ := a[i].Cidr.Mask.Size()
+	jPrefixSize , _ := a[j].Cidr.Mask.Size()
+	return iPrefixSize > jPrefixSize
+}
+
+func ProxyList() []*tictac.Proxy {
+	var proxies []*tictac.Proxy
+	// Validate remote address to find a proxy to use
+	for proxyname, _ := range viper.GetStringMap("proxies") {
+		for _, element := range viper.GetStringSlice(fmt.Sprintf("proxies.%s.elements", proxyname)) {
+			_, cidr, err := net.ParseCIDR(element)
+			if err != nil {
+				log.Print(fmt.Sprintf("Cannot parse cidr; %s", element))
+			}
+			var proxy = new(tictac.Proxy)
+			proxy.ProxyName = proxyname
+			proxy.Cidr = cidr
+			proxies = append(proxies, proxy)
+		}
+	}
+
+
+	sort.Sort(ByCidr(proxies))
+	return proxies
+}
+
 
 func main() {
 
@@ -35,6 +68,7 @@ func main() {
 	var config_test *bool = flag.Bool("configtest", false, "Test configuration and exit")
 	var daemon *bool = flag.Bool("daemon", false, "Daemonize the tac_proxy (implicit start)")
 	var stopdaemon *bool = flag.Bool("stop-daemon", false, "Stops the daemon")
+	var reload *bool = flag.Bool("reload", false, "Reloads config")
 
 	// Parse flags
 	flag.Parse()
@@ -86,12 +120,15 @@ func main() {
 		os.Exit(0)
 	}
 
+
+	tictac.GetServer().ProxyList = ProxyList()
+
 	_, err = os.Stat(viper.GetString("pidfile"))
 	if *daemon {
 		godaemon.MakeDaemon(&godaemon.DaemonAttr{})
 		log.SetOutput(logger)
 		log.SetFlags(0)
-	} else if *stopdaemon {
+	} else if *stopdaemon || *reload {
 		if os.IsNotExist(err) {
 			log.Printf("Cannot stop daemon %s is missing\n", viper.GetString("pidfile"))
 			os.Exit(1)
@@ -107,15 +144,20 @@ func main() {
 				log.Printf("%s", err)
 				os.Exit(1)
 			}
-			err = process.Kill()
-			if err != nil {
-				log.Printf("%s", err)
-				os.Exit(1)
-			}
+			if *stopdaemon {
+				err = process.Kill()
+				if err != nil {
+					log.Printf("%s", err)
+					os.Exit(1)
+				}
 
-			log.Printf("Killed process: %d", pid)
-			os.Remove(viper.GetString("pidfile"))
-			os.Exit(0)
+				log.Printf("Killed process: %d", pid)
+				os.Remove(viper.GetString("pidfile"))
+				os.Exit(0)
+			} else {
+				process.Signal(syscall.SIGHUP)
+				os.Exit(0)
+			}
 		}
 
 	}
@@ -137,6 +179,8 @@ func main() {
 	go func() {
 		for _ = range c {
 			viper.ReadInConfig()
+
+			tictac.GetServer().ProxyList = ProxyList()
 			log.Println("Reloading config")
 		}
 	}()

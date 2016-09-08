@@ -16,6 +16,24 @@ import (
 
 )
 
+type Proxy struct {
+	ProxyName string
+	Cidr	  *net.IPNet
+}
+
+type Server struct {
+	ProxyList []*Proxy;
+}
+
+var _s *Server
+func init() {
+	_s = new(Server)
+}
+
+func GetServer() *Server {
+	return _s
+}
+
 type Attachment struct {
 	Color		string `json:"color"`
 	Text		string `json:"text"`
@@ -55,15 +73,11 @@ func (s *session) Handle(logger *syslog.Writer) {
 	var proxy = "";
 
 	// Validate remote address to find a proxy to use
-	for proxyname, _ := range viper.GetStringMap("proxies") {
-		for _, element := range viper.GetStringSlice(fmt.Sprintf("proxies.%s.elements", proxyname)) {
-			_, cidrnet, err := net.ParseCIDR(element)
-			if err != nil {
-				log.Print(fmt.Sprintf("Cannot parse cidr; %s", element))
-			}
-			if cidrnet.Contains(net.ParseIP(peer)) {
-				proxy = proxyname
-			}
+	for  _, _proxy := range GetServer().ProxyList {
+
+		if _proxy.Cidr.Contains(net.ParseIP(peer)) {
+			proxy = _proxy.ProxyName
+			break
 		}
 	}
 	if proxy == "" {
