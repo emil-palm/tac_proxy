@@ -118,6 +118,12 @@ func (s *session) Handle(logger *syslog.Writer) {
 		_, err = r.Peek(12)
 		if err == nil {
 			p,_ := s.bReadPacket(r)
+			log.Println("==== Incomming Client data ====")
+			log.Printf("%s", string(p.data))
+			log.Printf("%s", p)
+			log.Println("==== END Incomming Client data ====")
+
+
 			// Proxy session
 			ps := NewSession(conn)
 			ps.key = []byte(proxy_object.GetString("upstream.key"))
@@ -139,7 +145,13 @@ func (s *session) Handle(logger *syslog.Writer) {
 				break
 			}
 
+			log.Println("==== Incomming Upstream data ====")
+			log.Printf("%s", string(pp.data))
+			log.Printf("%s", pp)
+			log.Println("==== END Incomming Upstream data ====")
+
 			p = s.genPacket(pp.packetType, p.version)
+			p.seq = pp.seq // TEsting to fix sequence....
 			p.data = pp.data
 			p.cryptData(s.key)
 			p.serialize(s.conn)
