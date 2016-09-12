@@ -133,6 +133,7 @@ func (s *session) Handle(logger *syslog.Writer) {
 			ps.sessionId = p.sessionId
 
 			pp := ps.genPacket(p.packetType, p.version)
+			pp.flags = p.flags
 			pp.data = p.data
 
 			pp.cryptData(ps.key)
@@ -152,6 +153,7 @@ func (s *session) Handle(logger *syslog.Writer) {
 
 			p = s.genPacket(pp.packetType, p.version)
 			p.seq = pp.seq // TEsting to fix sequence....
+			p.flags = pp.flags
 			p.data = pp.data
 			p.cryptData(s.key)
 			p.serialize(s.conn)
