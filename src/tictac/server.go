@@ -43,7 +43,8 @@ type Attachment struct {
 
 type Webhook struct {
 	Username	string `json:"username"`
-	Attachments []Attachment `json:"attachments"`
+	Attachments 	[]Attachment `json:"attachments"`
+	IconUrl		string `json:"icon_url"`
 }
 
 // session represents the state of a single tacacs session which is identified
@@ -172,11 +173,12 @@ func sendWebhook(peer string, peer_name string, proxy string) {
 	if !ok || time.Now().Unix() >= timer {
 		webhook := &Webhook{}
 		webhook.Username = viper.GetString("mattermost.webhook.username")
+		webhook.IconUrl = viper.GetString("mattermost.webhook.iconurl") 
 		attachment := Attachment{}
 		attachment.Color = "#ff0000"
 		attachment.Author_name = proxy
 		attachment.Text = fmt.Sprintf("%s (%s) is connecting to a old tacacs", peer_name, peer)
-	
+
 		webhook.Attachments = []Attachment{attachment}
 		jsonStr, err := json.Marshal(&webhook)
 		if err != nil {
