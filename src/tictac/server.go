@@ -11,9 +11,8 @@ import (
 	"bytes"
 	"log/syslog"
 	"log"
-	"time"
 	"io"
-
+	"time"
 )
 
 type Proxy struct {
@@ -110,6 +109,7 @@ func (s *session) Handle(logger *syslog.Writer) {
 		s.conn.Close()
 		return;
 	}
+
 	s.key = []byte(proxy_object.GetString("key"))
 	s.conn.SetReadDeadline(time.Now().Add(time.Second*30))
 
@@ -118,11 +118,6 @@ func (s *session) Handle(logger *syslog.Writer) {
 		_, err = r.Peek(12)
 		if err == nil {
 			p,_ := s.bReadPacket(r)
-			log.Println("==== Incomming Client data ====")
-			log.Printf("%s", string(p.data))
-			log.Printf("%s", p)
-			log.Println("==== END Incomming Client data ====")
-
 
 			// Proxy session
 			ps := NewSession(conn)
@@ -135,7 +130,8 @@ func (s *session) Handle(logger *syslog.Writer) {
 			pp := ps.genPacket(p.packetType, p.version)
 			pp.flags = p.flags
 			pp.data = p.data
-
+			pp.seq = p.seq
+			pp.sessionId = p.sessionId
 			pp.cryptData(ps.key)
 
 			pp.serialize(conn)
@@ -146,12 +142,8 @@ func (s *session) Handle(logger *syslog.Writer) {
 				break
 			}
 
-			log.Println("==== Incomming Upstream data ====")
-			log.Printf("%s", string(pp.data))
-			log.Printf("%s", pp)
-			log.Println("==== END Incomming Upstream data ====")
-
 			p = s.genPacket(pp.packetType, p.version)
+			p.sessionId = pp.sessionId
 			p.seq = pp.seq // TEsting to fix sequence....
 			p.flags = pp.flags
 			p.data = pp.data

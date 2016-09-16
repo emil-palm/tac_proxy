@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"bufio"
 )
 
 const DEFAULT_PORT = 49
@@ -191,11 +192,10 @@ func (p *packet) serialize(w io.Writer) error {
 	b.uint32(p.sessionId)
 	b.uint32(uint32(len(p.data)))
 
-	ew := errWriter{w: w}
-	ew.write(header[:])
-	ew.write(p.data)
-
-	return ew.err
+	writer := bufio.NewWriter(w)
+	writer.Write(header[:])
+	writer.Write(p.data)
+	return writer.Flush()
 }
 
 func (p *packet) parse(r io.Reader) error {
