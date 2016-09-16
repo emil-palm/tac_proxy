@@ -22,11 +22,13 @@ type Proxy struct {
 
 type Server struct {
 	ProxyList []*Proxy;
+	SpamFilter map[string]int64
 }
 
 var _s *Server
 func init() {
 	_s = new(Server)
+	_s.SpamFilter = make(map[string]int64)
 }
 
 func GetServer() *Server {
@@ -58,6 +60,7 @@ func NewSession(conn net.Conn) *session {
 		conn: conn,
 	}
 }
+
 
 
 func (s *session) Handle(logger *syslog.Writer) {
@@ -119,6 +122,13 @@ func (s *session) Handle(logger *syslog.Writer) {
 		if err == nil {
 			p,_ := s.bReadPacket(r)
 
+			if p.packetType == TAC_PLUS_AUTHEN {
+				if p.seq == 1 && viper.GetBool("mattermost.webhook.enable") {
+					go sendWebhook(peer, peer_name, proxy)
+				}
+			}
+
+
 			// Proxy session
 			ps := NewSession(conn)
 			ps.key = []byte(proxy_object.GetString("upstream.key"))
@@ -149,37 +159,40 @@ func (s *session) Handle(logger *syslog.Writer) {
 			p.data = pp.data
 			p.cryptData(s.key)
 			p.serialize(s.conn)
-			if p.packetType == TAC_PLUS_AUTHEN {
-				if viper.GetBool("mattermost.webhook.enable") {
-					webhook := &Webhook{}
-					webhook.Username = viper.GetString("mattermost.webhook.username")
-					attachment := Attachment{}
-					attachment.Color = "#ff0000"
-					attachment.Author_name = proxy
-					attachment.Text = fmt.Sprintf("%s (%s) is connecting to a old tacacs", peer_name, peer)
-
-					webhook.Attachments = []Attachment{attachment}
-					jsonStr, err := json.Marshal(&webhook)
-					if err != nil {
-						fmt.Printf("Could not format json string\n")
-						return
-					}
-					req, err := http.NewRequest("POST", viper.GetString("mattermost.webhook.url"), bytes.NewBuffer(jsonStr))
-					req.Header.Set("Content-Type", "application/json")
-					client := &http.Client{}
-					_, err = client.Do(req)
-					if err != nil {
-						log.Printf("%s", err)
-						log.Print(fmt.Sprintf("Failed to send webhook to mattermost"))
-					}
-				}
-			}
 		} else if err == io.EOF {
 			break
 		}
 	}
 	s.conn.Close()
 	conn.Close()
+}
+
+func sendWebhook(peer string, peer_name string, proxy string) {
+	timer, ok := GetServer().SpamFilter[peer]
+	if !ok || time.Now().Unix() >= timer {
+		webhook := &Webhook{}
+		webhook.Username = viper.GetString("mattermost.webhook.username")
+		attachment := Attachment{}
+		attachment.Color = "#ff0000"
+		attachment.Author_name = proxy
+		attachment.Text = fmt.Sprintf("%s (%s) is connecting to a old tacacs", peer_name, peer)
+	
+		webhook.Attachments = []Attachment{attachment}
+		jsonStr, err := json.Marshal(&webhook)
+		if err != nil {
+			fmt.Printf("Could not format json string\n")
+			return
+		}
+		req, err := http.NewRequest("POST", viper.GetString("mattermost.webhook.url"), bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
+		_, err = client.Do(req)
+		if err != nil {
+			log.Printf("%s", err)
+			log.Print(fmt.Sprintf("Failed to send webhook to mattermost"))
+		}
+		GetServer().SpamFilter[peer] = time.Now().Unix() + int64(60);
+	}
 }
 
 func (s *session) bReadPacket(br *bufio.Reader) (*packet, error) {
