@@ -162,6 +162,8 @@ func (s *session) Handle(logger *syslog.Writer) {
 			p.serialize(s.conn)
 		} else if err == io.EOF {
 			break
+		} else {
+			break
 		}
 	}
 	s.conn.Close()
